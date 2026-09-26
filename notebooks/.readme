@@ -1,0 +1,24 @@
+
+Here is a detailed and professional description covering all the core code files, scripts, and notebooks in your repository:
+
+---
+
+## **Repository File Guide**
+
+### **Notebooks (`notebooks/`)**
+
+* **`01_entity_resolution_eda.ipynb`**: Conducts initial Exploratory Data Analysis (EDA) on text attributes, entity labels, and missing values to uncover dataset distribution patterns.
+* **`02_candidate_generation.ipynb`**: Implements blocking and candidate generation techniques (such as blocking rules and vector similarity indexing) to narrow down potential matching pairs efficiently.
+* **`03_feature_engineering.ipynb`**: Extracts and engineers multimodal features, including text similarity scores (TF-IDF, Levenshtein, embeddings) and entity attribute matching metrics.
+* **`04_model_training.ipynb`**: Builds, tunes, and trains machine learning models (e.g., LightGBM, XGBoost, or Neural Classifiers) to predict entity matches.
+* **`05_validation.ipynb`**: Performs cross-validation and evaluates model performance using key metrics such as F1-Score, Precision, and Recall.
+* **`06_test_prediction.ipynb`**: Runs the trained model pipeline on unlabeled test datasets to generate the final prediction outputs.
+
+---
+
+### **Pipeline Scripts & Supporting Files**
+
+* **`preprocessing.py`**: Automated script for cleaning raw text attributes, normalizing entity values, handling missing data, and preparing clean input files for modeling.
+* **`submission_validator.py`**: Validation utility that verifies the output prediction files against required competition criteria (schema, column headers, non-null values, and row counts).
+* **`requirements.txt`**: List of Python dependencies and library versions required to set up and run the execution environment.
+* **`solution_architecture.md`**: Architectural document outlining the step-by-step design of the multimodal machine learning pipeline.
