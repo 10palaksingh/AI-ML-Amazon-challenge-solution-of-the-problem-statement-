@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Challenge data — keep private unless explicitly allowed
+data/train/*.tsv
+data/test/*.tsv
+
+# Generated artifacts
+output/*.tsv
+output/*.csv
+models/*.joblib
+models/*.pkl
+candidate_pairs*.tsv
+entity_resolution_features*.tsv
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

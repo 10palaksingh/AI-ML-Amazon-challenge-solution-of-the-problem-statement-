@@ -1,2 +1,1 @@
-# AI-ML-Amazon-challenge-solution-of-the-problem-statement-
-ML-based Business Entity Resolution pipeline for matching noisy business records across multiple sources using blocking, text similarity, feature engineering, and Random Forest.
+Generated submission files go here: matching_results.tsv and candidate_pairs.tsv. They are ignored by Git by default.
