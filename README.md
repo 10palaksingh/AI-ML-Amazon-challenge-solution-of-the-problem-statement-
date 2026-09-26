@@ -1,1 +1,28 @@
-Generated submission files go here: matching_results.tsv and candidate_pairs.tsv. They are ignored by Git by default.
+TRAINING DATA
+                     │
+          ┌──────────┴──────────┐
+          │                     │
+      Source 1              Source 2 + 3
+   Reference data          Possible matches
+          │                     │
+          └──────────┬──────────┘
+                     ↓
+              DATA EXPLORATION
+                     ↓
+             TEXT NORMALIZATION
+                     ↓
+           CANDIDATE GENERATION
+                / BLOCKING
+                     ↓
+          SIMILARITY FEATURES
+                     ↓
+              ML MATCH MODEL
+                     ↓
+           MATCH / NO MATCH
+                     ↓
+             VALIDATION
+                     ↓
+             TEST PREDICTION
+                     ↓
+       matching_results.tsv
+       candidate_pairs.tsv
