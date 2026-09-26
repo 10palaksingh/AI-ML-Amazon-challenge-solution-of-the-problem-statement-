@@ -1,1 +1,36 @@
+# Data Directory
 
+This directory contains the datasets, schemas, and preprocessed data files required for training, evaluating, and testing the ML pipeline for the Amazon ML Challenge problem statement.
+
+---
+
+## 📂 Directory Structure
+
+```text
+data/
+├── raw/                      # Original, unmodified datasets
+│   ├── train.csv             # Training data containing features and ground truth labels
+│   ├── test.csv              # Test dataset for generating final predictions
+│   └── sample_submission.csv # Expected format for final submission
+├── processed/                # Cleaned, tokenized, or feature-engineered data
+│   ├── train_cleaned.csv     # Preprocessed training dataset
+│   └── test_cleaned.csv      # Preprocessed testing dataset
+├── embeddings/               # Precomputed text or image feature embeddings
+└── README.md                 # Documentation for data directory
+
+
+
+
+student_resource/
+│
+├── dataset/
+│   ├── train/
+│   │   ├── train_source1.tsv
+│   │   ├── train_source2.tsv
+│   │   ├── train_source3.tsv
+│   │   └── train_ground_truth.tsv
+│   │
+│   └── test/
+│       ├── test_source1.tsv
+│       ├── test_source2.tsv
+│       └── test_source3.tsv
