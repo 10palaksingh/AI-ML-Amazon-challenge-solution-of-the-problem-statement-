@@ -1,1 +1,9 @@
+Here is an expanded, detailed version for your `docs/` README:
 
+## Documentation (`docs/`)
+
+The `docs/` directory serves as the primary central repository for all project specifications, design choices, system architecture diagrams, and development guidelines.
+
+* **GITHUB_GUIDE.md**: Contains team collaboration protocols, branching strategies (e.g., feature branches and pull requests), commit message formatting standards, and code review rules to maintain repository integrity.
+* **problem_statement.md**: Outlines the official Amazon ML Challenge guidelines, including detailed descriptions of expected inputs/outputs, target evaluation metrics (F1-score / Accuracy), and submission guidelines.
+* **solution_architecture.md**: Details the end-to-end Machine Learning pipeline design—from raw data ingestion and multimodal feature engineering (text and visual processing) to model training, hyperparameter tuning, and prediction formatting.
