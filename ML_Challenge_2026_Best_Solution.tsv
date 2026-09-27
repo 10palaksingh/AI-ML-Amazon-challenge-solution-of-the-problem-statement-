@@ -1,0 +1,285 @@
+section	content_type	content
+01_title	title	ML Challenge 2026: Business Entity Resolution — Submission Solution
+02_team	metadata	Team Name: NeuralNova
+03_members	metadata	Team Members: Palak Singh; Shivansh Gupta; Rajnish Kumar; Mritunjay Narayan Singh
+04_submission_date	metadata	Submission Date: 27 September 2026
+05_executive_summary	heading	1. Executive Summary
+06_objective	paragraph	The objective is to identify records that refer to the same real-world business across independent and noisy data sources when no common identifier is available.
+07_solution	paragraph	The proposed solution uses a scalable hybrid Entity Resolution pipeline: text normalization → multi-key blocking → candidate-pair generation → similarity feature engineering → Random Forest classification → threshold tuning using macro-averaged F0.5 → final entity matches → submission validation.
+08_design_principle	paragraph	The key design principle is to avoid all-pairs comparison. Blocking reduces the search space first, while the machine-learning classifier performs the more expensive decision only on plausible candidate pairs.
+09_metric_principle	paragraph	Because the challenge emphasizes precision through macro-averaged F0.5, the decision threshold is selected on validation data rather than assuming the default probability threshold of 0.50.
+10_problem_analysis	heading	2. Problem Analysis
+11_sources	table_header	"Source	Role"
+12_source1	table_row	"Source 1	Reference business entities"
+13_source2	table_row	"Source 2	Independent records that may correspond to Source 1"
+14_source3	table_row	"Source 3	Another independent source containing potentially matching business records"
+15_data_scale	paragraph	The training data described in the current solution contains approximately 2.21 million Source-1 records, 5.03 million Source-2 records, and 5.29 million Source-3 records. This scale makes exhaustive pairwise comparison impractical.
+16_noise	paragraph	Major data-quality issues include capitalization differences, punctuation, spelling errors, abbreviations, word-order changes, transliteration, missing names, missing address components, address formatting differences, and repeated generic business terms.
+17_relationships	paragraph	A Source-1 entity may have zero, one, or multiple corresponding records in another source. Therefore, the solution should not force a one-to-one relationship unless the challenge specification explicitly requires it.
+18_countries	paragraph	The current solution identifies the training data as containing the US and India and notes France in the test setting. Country is therefore treated as a matching feature/blocking signal rather than being hard-coded as a fixed list.
+19_architecture_flow	flowchart	"FLOW CHART — END-TO-END PIPELINE
+RAW SOURCE 1 + SOURCE 2 + SOURCE 3
+                ↓
+        DATA LOADING / EDA
+                ↓
+        TEXT NORMALIZATION
+                ↓
+       MULTI-KEY BLOCKING
+          ↙            ↘
+ NAME + COUNTRY      ADDRESS BLOCK + COUNTRY
+          ↘            ↙
+        UNION + DEDUPLICATION
+                ↓
+          CANDIDATE PAIRS
+                ↓
+       FEATURE ENGINEERING
+                ↓
+      RANDOM FOREST CLASSIFIER
+                ↓
+       MATCH PROBABILITY p
+                ↓
+      VALIDATED THRESHOLD τ
+                ↓
+      MATCH / NON-MATCH DECISION
+                ↓
+     ENTITY-LEVEL VALIDATION
+                ↓
+       FINAL TSV SUBMISSION"
+20_architecture_explanation	paragraph	The pipeline is intentionally modular. Each stage has a clear responsibility, making the solution easier to debug, reproduce, validate, and optimize independently.
+21_eda	heading	3. Exploratory Data Analysis
+22_eda_checks	table_header	"EDA Check	Purpose"
+23_eda_sizes	table_row	"Dataset size	Measure scale of each source"
+24_eda_missing	table_row	"Missing values	Understand reliability of name/address fields"
+25_eda_country	table_row	"Country distribution	Check geographic coverage and consistency"
+26_eda_duplicates	table_row	"Duplicate analysis	Identify repeated records and potential data-quality issues"
+27_eda_matches	table_row	"Ground-truth match distribution	Understand positive/negative class balance"
+28_eda_quality	table_row	"Data-quality analysis	Identify normalization and blocking requirements"
+29_normalization	heading	4. Text Normalization
+30_name_normalization	table_header	"Operation	Purpose"
+31_name_lower	table_row	"Lowercase conversion	Remove case-based differences"
+32_name_unicode	table_row	"Unicode normalization / transliteration	Reduce representation differences"
+33_name_amp	table_row	"Replace '&' with 'and'	Normalize common textual variation"
+34_name_punctuation	table_row	"Remove punctuation	Reduce formatting noise"
+35_name_spaces	table_row	"Whitespace normalization	Standardize token separation"
+36_address_normalization	paragraph	Apply the same general normalization principles to addresses while preserving meaningful numeric and textual information.
+37_missing_values	paragraph	Missing values are handled explicitly. Missing-name and missing-address indicators are retained as features so the classifier can distinguish unavailable information from genuinely dissimilar values.
+38_blocking	heading	5. Candidate Generation / Blocking
+39_blocking_reason	paragraph	Blocking is necessary because comparing every Source-1 record with every Source-2 and Source-3 record would create an impractically large search space.
+40_block1	table_row	"Block 1: normalized business name + country	High-precision candidate path when names are consistent"
+41_block2	table_row	"Block 2: normalized address prefix/block + country	Alternative candidate path when names are noisy or missing"
+42_block_union	flowchart	"BLOCKING FLOW
+Normalized Name + Country
+          ↓
+   Candidate Set A
+
+Normalized Address Block + Country
+          ↓
+   Candidate Set B
+
+A ∪ B
+ ↓
+Remove duplicate candidate pairs
+ ↓
+Final Candidate Set"
+43_blocking_recall	paragraph	Candidate-generation recall is critical: if a true pair is excluded during blocking, no downstream classifier can recover it. Multiple blocking paths reduce dependence on a single noisy field.
+44_blocking_tradeoff	paragraph	The blocking stage should balance recall and computational cost. Blocks that are too strict may lose true matches; blocks that are too broad may create too many candidate pairs.
+45_features	heading	6. Feature Engineering
+46_features_table_header	table_header	"Feature Group	Feature	Purpose"
+feature_47	table_row	"Name	WRatio similarity	Measures fuzzy name similarity"
+feature_48	table_row	"Name	Token similarity	Handles token-level ordering and wording differences"
+feature_49	table_row	"Name	Exact normalized-name match	Strong signal when normalized names are identical"
+feature_50	table_row	"Name	Name length difference	Captures structural differences"
+feature_51	table_row	"Name	Name missing indicator	Explicitly represents missing names"
+feature_52	table_row	"Address	WRatio similarity	Measures fuzzy address similarity"
+feature_53	table_row	"Address	Token similarity	Captures overlap between address tokens"
+feature_54	table_row	"Address	Address length difference	Captures structural differences"
+feature_55	table_row	"Address	Address missing indicator	Explicitly represents missing addresses"
+feature_56	table_row	"Geographic	Country match	Checks geographic consistency"
+57_feature_logic	paragraph	Name and address features are complementary. A similar name with a very different address can indicate a false positive, while a slightly different name with a highly similar address can provide evidence for a true match.
+58_model	heading	7. Matching Model
+59_model_type	paragraph	Model: Random Forest Classifier
+60_labels	table_header	"Label	Meaning"
+61_label1	table_row	"1	Match"
+62_label0	table_row	"0	Non-match"
+63_model_config	table_header	"Configuration	Purpose"
+64_config1	table_row	"Balanced class weighting	Handle class imbalance"
+65_config2	table_row	"Randomized feature selection	Improve tree diversity"
+66_config3	table_row	"Minimum leaf-size regularization	Reduce overfitting"
+67_config4	table_row	"Parallel training	Improve training speed"
+68_model_reason	paragraph	Random Forest is suitable for mixed, nonlinear similarity features and does not require the feature relationships to be purely linear.
+69_validation	heading	8. Train / Validation Strategy
+70_split	flowchart	"VALIDATION FLOW
+All labeled candidate pairs
+          ↓
+Split by Source-1 entity ID
+          ↓
+Training entities          Validation entities
+          ↓                       ↓
+Model training          Probability prediction
+          ↓                       ↓
+          Threshold sweep
+                 ↓
+       Macro F0.5 evaluation
+                 ↓
+       Select validation threshold"
+71_leakage	paragraph	The split is performed at the Source-1 entity level rather than randomly splitting candidate pairs. This reduces information leakage caused by the same underlying entity appearing in both training and validation.
+72_threshold	paragraph	Evaluate a range of probability thresholds on the validation set. Select the threshold that maximizes the challenge-specific macro F0.5 score, subject to the challenge's exact evaluation protocol.
+73_metric	heading	9. Evaluation Metric and Thresholding
+74_f05_formula	formula	F0.5 = (1 + 0.5^2) × Precision × Recall / ((0.5^2 × Precision) + Recall)
+75_metric_meaning	paragraph	F0.5 weights precision more heavily than recall. This makes threshold selection important because accepting too many uncertain matches can reduce the final metric.
+76_threshold_flow	flowchart	"Model probability p
+       ↓
+Try threshold τ1 → calculate macro F0.5
+Try threshold τ2 → calculate macro F0.5
+Try threshold τ3 → calculate macro F0.5
+       ↓
+Compare validation scores
+       ↓
+Select best validated τ
+       ↓
+Apply τ to test candidates"
+77_no_fake_metrics	paragraph	Do not report an estimated or manually chosen final score. The final precision, recall, F0.5, and selected threshold should be copied from the completed validation notebook after the full pipeline is executed.
+78_error_analysis	heading	10. Error Analysis
+79_fp	table_header	"False Positive Cause	Why it happens	Mitigation"
+80_fp1	table_row	"Similar business names	Different businesses can share generic names	Use address and country similarity jointly"
+81_fp2	table_row	"Incomplete addresses	Name may dominate the decision	Use missing indicators and conservative thresholding"
+82_fp3	table_row	"Shared generic terms	Words such as Solutions, Services, Consulting, Corporation occur across businesses	Use token and address features"
+83_fp4	table_row	"Short names	Short strings contain limited identity information	Require stronger supporting evidence"
+84_fn	table_header	"False Negative Cause	Why it happens	Mitigation"
+85_fn1	table_row	"Strongly altered names	Spelling, abbreviations, transliteration reduce similarity	Improve normalization and fuzzy/token features"
+86_fn2	table_row	"Noisy addresses	Important address components may be missing or reordered	Use multiple address representations"
+87_fn3	table_row	"Missing fields	Fewer signals are available	Retain missing indicators and use alternate blocks"
+88_fn4	table_row	"Blocking failure	True pair never reaches classifier	Monitor candidate-generation recall and add complementary blocks"
+89_scalability	heading	11. Scalability and Efficiency
+90_complexity	paragraph	Naive entity resolution is approximately O(N×M) for two sources. Blocking reduces the comparison workload to the number of generated candidate pairs, making the expensive similarity and model stages substantially more scalable.
+91_efficiency	table_header	"Stage	Efficiency Strategy"
+92_eff1	table_row	"Normalization	Vectorized/string preprocessing where possible"
+93_eff2	table_row	"Blocking	Dictionary/hash-based lookup on blocking keys"
+94_eff3	table_row	"Candidate pairs	Deduplicate before feature computation"
+95_eff4	table_row	"Features	Compute only for candidate pairs"
+96_eff5	table_row	"Model	Parallel Random Forest training/inference"
+97_eff6	table_row	"Output	Write compact TSV outputs rather than retaining unnecessary intermediate data in memory"
+98_algorithm	heading	12. End-to-End Algorithm
+99_algorithm_flow	flowchart	"FOR EACH SOURCE
+1. Load records
+2. Normalize name and address
+3. Create blocking keys
+4. Generate candidates
+5. Union and deduplicate candidates
+6. Compute similarity features
+7. Train / load classifier
+8. Predict match probability
+9. Apply validated threshold
+10. Produce entity matches
+11. Validate submission schema
+12. Save final TSV outputs"
+100_pseudocode	pseudocode	"for each source record:
+    normalize(name, address)
+    create(name_country_block)
+    create(address_country_block)
+
+candidate_pairs = union(name_block_candidates, address_block_candidates)
+candidate_pairs = deduplicate(candidate_pairs)
+
+features = build_features(candidate_pairs)
+model.fit(train_features, train_labels)
+probabilities = model.predict_proba(test_features)[:, 1]
+predictions = probabilities >= validated_threshold
+
+validate_submission(predictions)
+write_output_tsv(predictions)"
+101_project_structure	heading	13. Recommended Project Structure
+102_tree	code	"business_entity_resolution/
+├── notebooks/
+│   ├── 01_entity_resolution_eda.ipynb
+│   ├── 02_candidate_generation.ipynb
+│   ├── 03_feature_engineering.ipynb
+│   ├── 04_model_training.ipynb
+│   ├── 05_validation.ipynb
+│   └── 06_test_prediction.ipynb
+├── src/
+│   ├── preprocessing.py
+│   ├── blocking.py
+│   ├── features.py
+│   ├── model.py
+│   └── submission_validator.py
+├── data/
+│   ├── train/
+│   └── test/
+├── models/
+├── output/
+├── requirements.txt
+├── README.md
+└── .gitignore"
+103_notebook_roles	table_header	"Notebook	Responsibility"
+104_nb1	table_row	"01_entity_resolution_eda.ipynb	EDA, missing values, duplicates, country distribution, class distribution"
+105_nb2	table_row	"02_candidate_generation.ipynb	Normalization, blocking, candidate generation, deduplication"
+106_nb3	table_row	"03_feature_engineering.ipynb	Name/address/token/exact/country/missing/length features"
+107_nb4	table_row	"04_model_training.ipynb	Entity-level split, Random Forest training, probability generation"
+108_nb5	table_row	"05_validation.ipynb	Threshold sweep, macro F0.5, final threshold selection"
+109_nb6	table_row	"06_test_prediction.ipynb	Test preprocessing, candidates, features, model inference, final TSV outputs"
+110_submission	heading	14. Submission Output
+111_submission_flow	flowchart	"TEST DATA
+   ↓
+Preprocessing
+   ↓
+Blocking
+   ↓
+Candidate Pairs
+   ↓
+Feature Generation
+   ↓
+Load Trained Model
+   ↓
+Probability Scores
+   ↓
+Validated Threshold
+   ↓
+Final Matching Records
+   ↓
+Submission Validator
+   ↓
+FINAL TSV FILE(S)"
+112_outputs	table_header	"Output	Purpose"
+113_out1	table_row	"candidate_pairs.tsv	Audit/debug output containing generated candidate relationships"
+114_out2	table_row	"matching_results.tsv	Final predicted entity matches in the challenge-required schema"
+115_schema	paragraph	The exact final column names and row structure must follow the challenge submission specification. Do not add or rename output columns unless the challenge explicitly permits it.
+116_validation_checks	table_header	"Validation Check	Requirement"
+117_v1	table_row	"Required columns	All challenge-required columns present"
+118_v2	table_row	"Data types	IDs and labels use the required types"
+119_v3	table_row	"Duplicate rows	No unintended duplicate submission records"
+120_v4	table_row	"Missing IDs	No invalid or missing identifiers in required fields"
+121_v5	table_row	"Match labels	Only permitted labels/values are written"
+122_v6	table_row	"File format	TSV with correct delimiter and encoding"
+123_risks	heading	15. Risks and Future Improvements
+124_risk1	paragraph	Risk 1: Overly strict blocking can reduce candidate recall.
+125_risk2	paragraph	Risk 2: Very broad blocks can increase candidate-pair volume and runtime.
+126_risk3	paragraph	Risk 3: Generic business names can produce false positives.
+127_risk4	paragraph	Risk 4: Missing name and address fields reduce available evidence.
+128_improve1	paragraph	Improvement: Add additional blocking keys such as postal-code fragments, phone fragments, website/domain signals, or administrative-region keys when those fields are present in the challenge data.
+129_improve2	paragraph	Improvement: Add character n-gram similarity, Jaro-Winkler, edit distance, numeric-address overlap, and domain-specific token weighting when supported by the data.
+130_improve3	paragraph	Improvement: Compare Random Forest against a calibrated gradient-boosted tree model using the same entity-level validation protocol.
+131_improve4	paragraph	Improvement: Monitor candidate-generation recall separately from classifier recall so blocking failures are not confused with model failures.
+132_final_flow	heading	16. Final Solution at a Glance
+133_final_flowchart	flowchart	"NOISY BUSINESS DATA
+        ↓
+NORMALIZE TEXT
+        ↓
+MULTIPLE BLOCKING KEYS
+        ↓
+SMALL CANDIDATE SET
+        ↓
+NAME + ADDRESS + COUNTRY FEATURES
+        ↓
+RANDOM FOREST
+        ↓
+MATCH PROBABILITY
+        ↓
+F0.5-OPTIMIZED THRESHOLD
+        ↓
+ENTITY MATCHES
+        ↓
+VALIDATION + TSV SUBMISSION"
+134_core_innovation	paragraph	Core innovation: combine high-recall multi-key candidate generation with precision-oriented machine-learning matching. This gives a practical balance between large-scale computational efficiency and robust entity matching.
+135_reproducibility	paragraph	The pipeline is reproducible because preprocessing, candidate generation, feature engineering, training, validation, prediction, and submission validation are separated into explicit stages.
+136_final_note	paragraph	Important submission rule: replace any placeholder validation result with the exact score and threshold produced by the final executed validation notebook. Never submit guessed or estimated metrics.
