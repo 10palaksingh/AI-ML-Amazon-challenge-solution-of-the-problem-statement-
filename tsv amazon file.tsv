@@ -1,0 +1,1438 @@
+file_path	file_type	size_bytes	content
+entity_resolution_github_final/requirements.txt	Text	89	"numpy
+pandas
+scikit-learn
+rapidfuzz
+unidecode
+matplotlib
+seaborn
+jupyter
+nbformat
+joblib
+"
+entity_resolution_github_final/README.md	Markdown	6018	"# Business Entity Resolution — ML Challenge 2026
+
+## Project overview
+
+This project solves a **Business Entity Resolution** problem: records for the same real-world business are distributed across three independent data sources, with no common identifier between sources.
+
+The goal is to take every Source-1 business and identify all corresponding records in Source 2 and Source 3, despite noisy business names and addresses.
+
+### Why this is difficult
+
+The data can contain:
+
+- spelling mistakes and typos
+- abbreviations and legal suffixes
+- punctuation differences
+- `&` versus `and`
+- word-order changes
+- transliteration/non-Latin text
+- missing addresses
+- reordered address components
+- noisy or inconsistent formatting
+- multiple records with the same business name
+
+The test data can also contain countries not present in training, so country is used as a **blocking signal**, not as a hard-coded list of allowed countries.
+
+---
+
+## What the solution does
+
+```text
+Raw Source 1 / 2 / 3
+        |
+        v
+1. Data inspection / EDA
+        |
+        v
+2. Text normalization
+   - lowercase
+   - transliteration
+   - punctuation cleanup
+   - whitespace cleanup
+        |
+        v
+3. Candidate generation / blocking
+   - normalized name + country
+   - address prefix + country
+   - union + deduplication
+        |
+        v
+4. Pair-level feature engineering
+   - WRatio name similarity
+   - token-set name similarity
+   - WRatio address similarity
+   - token-set address similarity
+   - exact-name flag
+   - country-match flag
+   - missingness / length-difference features
+        |
+        v
+5. Random Forest classifier
+        |
+        v
+6. Threshold validation
+   - entity-level macro F0.5
+   - precision-heavy decision rule
+        |
+        v
+7. Test prediction
+   - generate candidates
+   - score candidates
+   - keep predicted matches
+   - write submission files
+        |
+        v
+8. Submission validation
+```
+
+## Challenge-specific output
+
+The final submission contains:
+
+- `output/matching_results.tsv` — required and scored
+- `output/candidate_pairs.tsv` — candidate set from blocking
+
+The exact required headers are:
+
+```text
+source1_entity_id    matched_entity_ids
+source1_entity_id    candidate_entity_ids
+```
+
+Both files are TAB-separated TSV files. Every test Source-1 entity must have exactly one row, including entities for which the prediction is empty.
+
+The included validator checks the formatting requirements before submission.
+
+---
+
+## Repository structure
+
+```text
+entity-resolution-ml-challenge/
+│
+├── notebooks/
+│   ├── 01_entity_resolution_eda.ipynb
+│   ├── 02_candidate_generation.ipynb
+│   ├── 03_feature_engineering.ipynb
+│   ├── 04_model_training.ipynb
+│   ├── 05_validation.ipynb
+│   └── 06_test_prediction.ipynb
+│
+├── src/
+│   ├── preprocessing.py
+│   └── submission_validator.py
+│
+├── docs/
+│   ├── problem_statement.md
+│   └── solution_architecture.md
+│
+├── data/
+│   ├── train/
+│   │   └── README.md
+│   └── test/
+│       └── README.md
+│
+├── output/
+│   └── README.md
+│
+├── models/
+│   └── README.md
+│
+├── requirements.txt
+├── .gitignore
+└── README.md
+```
+
+Large/raw challenge datasets and generated model/output files are intentionally ignored by Git. Keep the private challenge data locally and commit the reproducible code/notebooks.
+
+---
+
+## How to run
+
+### 1. Create environment
+
+```bash
+python -m venv .venv
+```
+
+Windows:
+
+```powershell
+.venv\Scripts\activate
+```
+
+Install:
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Put the challenge data locally
+
+Expected training files:
+
+```text
+data/train/
+├── train_source1.tsv
+├── train_source2.tsv
+├── train_source3.tsv
+└── train_ground_truth.tsv
+```
+
+Expected test files:
+
+```text
+data/test/
+├── test_source1.tsv
+├── test_source2.tsv
+└── test_source3.tsv
+```
+
+The challenge data itself is not included in this GitHub repository.
+
+### 3. Run notebooks in order
+
+```text
+01 -> 02 -> 03 -> 04 -> 05 -> 06
+```
+
+The notebooks use paths relative to the repository root, so they are portable between machines.
+
+### 4. Final validation
+
+The test notebook creates:
+
+```text
+output/matching_results.tsv
+output/candidate_pairs.tsv
+```
+
+Then run:
+
+```bash
+python src/submission_validator.py ^
+  --matching output/matching_results.tsv ^
+  --candidate output/candidate_pairs.tsv ^
+  --test-dir data/test
+```
+
+For the additional ID-existence diagnostic:
+
+```bash
+python src/submission_validator.py ^
+  --matching output/matching_results.tsv ^
+  --candidate output/candidate_pairs.tsv ^
+  --test-dir data/test ^
+  --check-ids
+```
+
+---
+
+## Important methodological note
+
+The project deliberately does **not** use external business databases, geocoding services, web lookup, or external entity information. Matching is based only on the challenge-provided records.
+
+The current repository implements a strong, reproducible baseline pipeline. The final leaderboard result depends on the threshold, candidate recall, and the exact hidden test distribution. Do not claim a final score until the complete test run has been executed.
+
+---
+
+## GitHub presentation
+
+For a portfolio repository, the recommended public repository should contain:
+
+- the notebooks
+- the source utilities
+- README and methodology
+- requirements
+- `.gitignore`
+- small documentation/examples if desired
+
+Do **not** publish the private challenge data, ground-truth labels, API keys, or very large generated candidate files unless the competition explicitly permits them.
+
+Suggested repository description:
+
+> ML pipeline for noisy cross-source business entity resolution using blocking, fuzzy similarity features, Random Forest classification, and entity-level F0.5 validation.
+
+Suggested topics:
+
+`entity-resolution` `record-linkage` `machine-learning` `nlp` `fuzzy-matching` `random-forest` `data-science` `python`
+"
+entity_resolution_github_final/.gitignore	Other	354	"# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Challenge data — keep private unless explicitly allowed
+data/train/*.tsv
+data/test/*.tsv
+
+# Generated artifacts
+output/*.tsv
+output/*.csv
+models/*.joblib
+models/*.pkl
+candidate_pairs*.tsv
+entity_resolution_features*.tsv
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+"
+entity_resolution_github_final/src/preprocessing.py	Python	801	"from pathlib import Path
+import re
+import pandas as pd
+import unidecode
+
+ROOT = Path(__file__).resolve().parents[1]
+TRAIN_DIR = ROOT / ""data"" / ""train""
+TEST_DIR = ROOT / ""data"" / ""test""
+OUTPUT_DIR = ROOT / ""output""
+MODEL_DIR = ROOT / ""models""
+
+def normalize_text(value):
+    if pd.isna(value):
+        return """"
+    text = str(value).lower()
+    text = unidecode.unidecode(text)
+    text = text.replace(""&"", "" and "")
+    text = re.sub(r""[^a-z0-9\s]"", "" "", text)
+    text = re.sub(r""\s+"", "" "", text).strip()
+    return text
+
+def prepare_source(df):
+    df = df.copy()
+    df[""name_norm""] = df[""business_name""].apply(normalize_text)
+    df[""address_norm""] = df[""business_address""].apply(normalize_text)
+    df[""country_norm""] = df[""country""].fillna("""").astype(str).str.lower().str.strip()
+    return df
+"
+entity_resolution_github_final/src/submission_validator.py	Python	13689	"!/usr/bin/env python3
+""""""
+ML Challenge 2026 — Submission Validator
+
+Run this BEFORE submitting. It checks your output files against every formatting
+rule the scorer enforces, so you can catch a rejection locally instead of burning
+a submission. It reads only your output files and the test source files (to learn
+which S1 entities are required and which S2/S3 IDs exist); it never needs the
+ground truth and never computes your score.
+
+It validates two files:
+
+* ``matching_results.tsv`` (required) — your final matches, the file scored on the
+  leaderboard.
+* ``candidate_pairs.tsv`` (optional) — the candidate set from your blocking stage.
+  When present, the validator also checks that your final matches are a subset of
+  your candidates and *warns* (never fails) otherwise. When absent it is skipped
+  with a warning; it is still expected in your final submission zip.
+
+Stdlib only, Python 3.8+. Run from the ``student_resource/`` directory::
+
+    python3 utils/validate_submission.py \
+        --matching output/matching_results.tsv \
+        --candidate output/candidate_pairs.tsv \
+        --test-dir dataset/test
+
+Exit code 0 means the files are safe to submit; 1 means fix the listed issues
+(warnings never fail the run).
+
+ID-existence check (off by default). By default the validator does NOT check that
+every matched/candidate ID actually exists in the test set: that check loads all
+Source-2/3 IDs into memory, which on the full ~1.7M-entity test set costs a few GB
+(more when ``candidate_pairs.tsv`` is included). The default run therefore stays fast
+and light and verifies every other rule; it prints a warning noting the check was
+skipped. Pass ``--check-ids`` to turn it on (it reads ``test_source2.tsv`` /
+``test_source3.tsv`` from ``--test-dir``); a missing/garbage matched ID only lowers
+your score rather than being rejected by the scorer, so this check is a diagnostic,
+not a gate. If ``--check-ids`` runs out of memory, drop ``--candidate`` (the candidate
+cross-check is the biggest memory user, and the matching file is the only one scored).
+""""""
+
+import argparse
+import os
+import sys
+
+DELIM = ""\t""
+MAX_EXAMPLES = 5  # how many offending IDs to show per issue
+MATCHING_HEADER = [""source1_entity_id"", ""matched_entity_ids""]
+CANDIDATE_HEADER = [""source1_entity_id"", ""candidate_entity_ids""]
+
+
+def read_ids(path):
+    """"""Return the set of first-column entity IDs from a source TSV.
+
+    The header row is skipped and blank lines are ignored.
+    """"""
+    with open(path, encoding=""utf-8"") as f:
+        next(f, None)  # skip header
+        return {line.split(DELIM, 1)[0].strip() for line in f if line.strip()}
+
+
+def examples(items):
+    """"""Return a short, human-readable sample of ``items`` for an error message.""""""
+    items = sorted(items)
+    shown = "", "".join(items[:MAX_EXAMPLES])
+    if len(items) > MAX_EXAMPLES:
+        return f""{len(items)} total, e.g. {shown}, ...""
+    return shown
+
+
+def load_match_targets(test_dir, warnings):
+    """"""Return the set of valid S2/S3 match IDs, or ``None`` if unavailable.
+
+    Only called when ``--check-ids`` is on. When ``test_source2.tsv`` or
+    ``test_source3.tsv`` is missing we cannot check that matched IDs exist, so we
+    record a warning and return ``None`` to signal that the existence check should be
+    skipped.
+    """"""
+    targets = set()
+    for name in (""test_source2.tsv"", ""test_source3.tsv""):
+        path = os.path.join(test_dir, name)
+        if not os.path.isfile(path):
+            warnings.append(
+                f""{path} not found — skipping the (optional) check that matched ""
+                f""IDs exist in the test set. Every other rule is still checked. ""
+                f""This is the lighter-memory mode; provide test_source2/3.tsv to ""
+                f""enable the ID-existence check.""
+            )
+            return None
+        targets |= read_ids(path)
+    return targets
+
+
+def validate_id_list_file(path, expected_header, col_label, required, valid_ids, errors):
+    """"""Validate one results-style TSV (matching or candidate).
+
+    Applies the shared formatting rules and appends any problems to ``errors``.
+    Returns a ``{source1_id: set(matched/candidate ids)}`` mapping, or ``None`` on a
+    fatal problem (missing file, empty file, or a broken header) that stops parsing.
+    """"""
+    if not os.path.isfile(path):
+        errors.append(f""File not found: {path}"")
+        return None
+
+    name = os.path.basename(path)
+    mapping = {}
+    seen, dup_rows, intra_dupes = set(), set(), set()
+    self_matches, wrong_prefix, unknown = set(), set(), set()
+    n_rows = empties = 0
+
+    with open(path, encoding=""utf-8"") as f:
+        header = f.readline()
+        if not header:
+            errors.append(f""{name} is empty."")
+            return None
+        if DELIM not in header and "","" in header:  # the #1 mistake: a CSV
+            errors.append(
+                f""{name}: header has no TAB but contains commas — the file looks ""
+                ""COMMA-separated. Submissions must be TAB-separated (.tsv); ""
+                ""write it with df.to_csv(sep='\\t', index=False).""
+            )
+            return None
+        cols = [c.strip().lower() for c in header.rstrip(""\n"").split(DELIM)]
+        if cols != expected_header:
+            errors.append(
+                f""{name}: unexpected header {cols}. ""
+                f""Expected exactly {expected_header} (tab-separated).""
+            )
+            return None
+
+        for line_num, line in enumerate(f, start=2):
+            s1, tab, rest = line.partition(DELIM)
+            if not tab:
+                if s1.strip():
+                    errors.append(
+                        f""{name}: malformed row (no tab) at line {line_num}: ""
+                        f""{line.rstrip()!r}""
+                    )
+                continue
+
+            n_rows += 1
+            if s1 in seen:
+                dup_rows.add(s1)
+            seen.add(s1)
+
+            ids = rest.rstrip(""\n"").split("","") if rest.strip() else []
+            if not ids:
+                empties += 1
+                mapping[s1] = set()
+                continue
+            if len(ids) != len(set(ids)):
+                intra_dupes.add(s1)
+            id_set = set(ids)
+            mapping[s1] = id_set
+            for mid in id_set:
+                if mid.startswith(""S1-""):
+                    self_matches.add(mid)
+                elif not mid.startswith((""S2-"", ""S3-"")):
+                    wrong_prefix.add(mid)
+                elif valid_ids is not None and mid not in valid_ids:
+                    unknown.add(mid)
+
+    # Aggregate the per-category findings. Each entry is (offenders, message);
+    # only non-empty categories become errors.
+    findings = [
+        (
+            dup_rows,
+            ""{name}: duplicate source1_entity_id row(s): {ex}. ""
+            ""Each S1 entity may appear on only one row."",
+        ),
+        (
+            intra_dupes,
+            ""{name}: repeated ID inside a {col} list for: {ex}. ""
+            ""No duplicate IDs are allowed within a list."",
+        ),
+        (
+            self_matches,
+            ""{name}: {col} contains Source-1 IDs (self-matches): {ex}. ""
+            ""Only S2-/S3- IDs are allowed."",
+        ),
+        (
+            wrong_prefix,
+            ""{name}: {col} contains IDs without an S2-/S3- prefix: {ex}."",
+        ),
+        (
+            unknown,
+            ""{name}: {col} references IDs not in the test ""
+            ""Source-2/3 files: {ex}."",
+        ),
+        (
+            required - seen,
+            ""{name}: required S1 entity(ies) missing: {ex}. ""
+            ""Every entity in test_source1.tsv needs a row (empty = no match)."",
+        ),
+        (
+            seen - required,
+            ""{name}: row(s) using an S1 ID that is not in the test set: {ex}."",
+        ),
+    ]
+    for offenders, message in findings:
+        if offenders:
+            errors.append(message.format(name=name, ex=examples(offenders), col=col_label))
+
+    print(f""  {name}: {n_rows} rows ({empties} empty, {n_rows - empties} non-empty)."")
+    return mapping
+
+
+def validate(matching_path, candidate_path, test_dir, check_ids=False):
+    """"""Validate the submission output(s); return ``(errors, warnings)`` lists.
+
+    ``check_ids`` (``--check-ids``) turns on the optional, memory-heavy check that
+    every matched/candidate ID exists in the test Source-2/3 files. It is off by
+    default so the common run stays fast and light.
+    """"""
+    errors, warnings = [], []
+
+    source1 = os.path.join(test_dir, ""test_source1.tsv"")
+    if not os.path.isfile(source1):
+        errors.append(f""Test source1 file not found: {source1} (check --test-dir)."")
+        return errors, warnings
+    required = read_ids(source1)
+    print(f""  required S1 entities: {len(required)}"")
+
+    if check_ids:
+        valid_ids = load_match_targets(test_dir, warnings)
+        if valid_ids is not None:
+            print(f""  valid S2/S3 match IDs: {len(valid_ids)}"")
+    else:
+        valid_ids = None
+        warnings.append(
+            ""ID-existence check is OFF (the default) — not checking that matched/""
+            ""candidate IDs exist in the test set. Every other rule is still checked. ""
+            ""Re-run with --check-ids to enable it (needs test_source2/3.tsv; uses ""
+            ""more memory). A nonexistent ID only lowers your score, never rejects ""
+            ""your submission.""
+        )
+
+    matched = validate_id_list_file(
+        matching_path, MATCHING_HEADER, ""matched_entity_ids"", required, valid_ids, errors
+    )
+
+    # candidate_pairs.tsv is optional: if it's absent we skip its checks with a
+    # warning (it's still expected in your final submission zip). A missing
+    # candidate file never fails this run on its own.
+    candidate = None
+    if candidate_path and os.path.isfile(candidate_path):
+        candidate = validate_id_list_file(
+            candidate_path, CANDIDATE_HEADER, ""candidate_entity_ids"",
+            required, valid_ids, errors,
+        )
+    elif candidate_path:
+        warnings.append(
+            f""{candidate_path} not found — skipping candidate_pairs.tsv checks. ""
+            ""It is optional here, but your final submission zip must include ""
+            ""output/candidate_pairs.tsv.""
+        )
+
+    # Soft check: your final matches should come from your blocking candidates.
+    # A matched ID absent from candidate_pairs.tsv usually means a pipeline bug,
+    # so we warn but never fail on it.
+    if matched is not None and candidate is not None:
+        offenders = {
+            s1 for s1, mids in matched.items() if mids - candidate.get(s1, set())
+        }
+        if offenders:
+            warnings.append(
+                f""{len(offenders)} S1 entity(ies) have matched IDs not present in ""
+                f""candidate_pairs.tsv, e.g. {examples(offenders)}. Final matches ""
+                ""normally come from your blocking candidates — double-check these.""
+            )
+
+    return errors, warnings
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description=""Validate ML Challenge 2026 submission output files before submitting.""
+    )
+    parser.add_argument(
+        ""--matching"",
+        ""-m"",
+        default=""output/matching_results.tsv"",
+        help=""Path to matching_results.tsv (default: %(default)s)"",
+    )
+    parser.add_argument(
+        ""--candidate"",
+        ""-c"",
+        default=None,
+        help=""Path to candidate_pairs.tsv ""
+        ""(default: output/candidate_pairs.tsv if it exists)."",
+    )
+    parser.add_argument(
+        ""--test-dir"",
+        ""-t"",
+        default=""dataset/test"",
+        help=""Folder with test_source1/2/3.tsv (default: %(default)s). ""
+        ""test_source2/3.tsv are only read when --check-ids is given."",
+    )
+    parser.add_argument(
+        ""--check-ids"",
+        action=""store_true"",
+        help=""Also check that every matched/candidate ID exists in the test ""
+        ""Source-2/3 files. Off by default (loads all S2/S3 IDs into memory — a few ""
+        ""GB on the full test set). A nonexistent ID only lowers your score, so this ""
+        ""is a diagnostic, not a submission gate."",
+    )
+    args = parser.parse_args()
+
+    # candidate_pairs.tsv is optional; default to the conventional path and let
+    # validate() skip (with a warning) if the file isn't there.
+    candidate_path = args.candidate or ""output/candidate_pairs.tsv""
+
+    print(""ML Challenge 2026 — submission validator"")
+    print(f""  test dir: {args.test_dir}"")
+    try:
+        errors, warnings = validate(
+            args.matching, candidate_path, args.test_dir, check_ids=args.check_ids
+        )
+    except UnicodeDecodeError:
+        print()
+        print(""FAIL — 1 issue(s) to fix before submitting:"")
+        print(
+            f""  1. A file is not valid UTF-8 text (most likely {args.matching} or ""
+            f""{candidate_path}). Re-save it as a plain UTF-8, tab-separated .tsv — ""
+            ""not cp1252/Latin-1, and not a compressed or binary file (.gz/.xlsx/""
+            "".parquet) renamed to .tsv. In pandas: ""
+            ""df.to_csv(path, sep='\\t', index=False, encoding='utf-8').""
+        )
+        return 1
+    except OSError as exc:
+        print()
+        print(""FAIL — 1 issue(s) to fix before submitting:"")
+        print(f""  1. Could not read a file: {exc}."")
+        return 1
+
+    print()
+    for warning in warnings:
+        print(f""WARNING: {warning}"")
+    if errors:
+        print(f""FAIL — {len(errors)} issue(s) to fix before submitting:"")
+        for i, error in enumerate(errors, 1):
+            print(f""  {i}. {error}"")
+        return 1
+    print(""PASS — no blocking issues found. Safe to submit."")
+    return 0
+
+
+if __name__ == ""__main__"":
+    sys.exit(main())
+```"
+entity_resolution_github_final/docs/solution_architecture.md	Markdown	2966	"# Solution Architecture
+
+## 1. Normalization
+
+Business names and addresses are normalized before matching.
+
+Operations:
+
+1. convert to lowercase
+2. transliterate Unicode text where possible
+3. convert `&` to `and`
+4. remove punctuation/symbol noise
+5. collapse repeated whitespace
+6. preserve empty strings for missing fields
+
+This makes superficial formatting differences less important.
+
+## 2. Candidate generation
+
+Comparing every Source-1 record with every Source-2/Source-3 record would be computationally expensive and would create an enormous number of irrelevant pairs.
+
+The solution therefore uses blocking.
+
+### Block A — normalized name + country
+
+Records with the same normalized business name and country are candidate pairs.
+
+### Block B — address prefix + country
+
+Whitespace-free normalized address prefixes are used as another blocking key.
+
+### Candidate union
+
+Candidates from both blocks are unioned and deduplicated.
+
+The candidate-generation stage is intentionally separated from feature engineering so that candidate recall can be measured independently.
+
+## 3. Feature engineering
+
+For every candidate pair:
+
+- name WRatio
+- name token-set ratio
+- address WRatio
+- address token-set ratio
+- exact normalized-name indicator
+- country-match indicator
+- name missingness
+- address missingness
+- name-length difference
+- address-length difference
+
+These features combine fuzzy similarity with simple structural evidence.
+
+## 4. Supervised matching model
+
+Training labels are constructed from `train_ground_truth.tsv`.
+
+A Random Forest classifier predicts whether each candidate pair is a true match.
+
+A Source-1-level split is preferred for validation so records from the same Source-1 entity do not leak between training and validation.
+
+## 5. Threshold selection
+
+The model produces a probability for each candidate pair.
+
+Instead of blindly using 0.5, several thresholds are evaluated.
+
+Because the challenge metric is entity-level macro F0.5, the validation notebook calculates the challenge-style metric by:
+
+1. grouping predictions by Source-1 entity
+2. converting each predicted list to a set
+3. comparing it with the ground-truth set
+4. calculating F0.5 per Source-1 entity
+5. averaging across Source-1 entities
+
+## 6. Test prediction
+
+For test data:
+
+1. normalize all three sources
+2. generate candidates
+3. calculate the same features
+4. load the trained model
+5. apply the selected threshold
+6. group predicted S2/S3 IDs by S1
+7. create a row for every test S1 entity
+8. write `matching_results.tsv`
+9. write `candidate_pairs.tsv`
+
+## 7. Submission validation
+
+The supplied validator checks:
+
+- exact required headers
+- TAB-separated format
+- duplicate Source-1 rows
+- duplicate IDs inside a list
+- illegal S1 matches
+- invalid ID prefixes
+- missing required S1 rows
+- extra S1 rows
+- optional existence of S2/S3 IDs
+- whether final matches come from candidate lists
+
+This validation should be run before packaging the submission.
+"
+entity_resolution_github_final/docs/problem_statement.md	Markdown	1194	"# Problem Statement
+
+The challenge is a **Business Entity Resolution** task.
+
+Three independent sources contain business records. Source 1 acts as the reference set, while Source 2 and Source 3 contain noisy records that may refer to the same real-world businesses.
+
+For every Source-1 entity, the system must determine which Source-2 and Source-3 entity IDs refer to the same business.
+
+A Source-1 entity may have:
+
+- no matching records
+- one matching record
+- multiple matching records
+
+There is no shared identifier that directly links the records.
+
+The main sources of noise are business-name variation, address variation, spelling errors, punctuation, abbreviations, legal suffixes, word-order changes, transliteration, and missing address components.
+
+The solution therefore has to perform **record linkage rather than simple exact joins**.
+
+The evaluation is precision-heavy and uses macro-averaged F0.5 at the Source-1 entity level. This makes both correct positive matches and careful handling of no-match/singleton cases important.
+
+The challenge also requires every test Source-1 entity to appear in the final output, including entities for which the predicted match list is empty.
+"
+entity_resolution_github_final/docs/GITHUB_GUIDE.md	Markdown	1294	"# GitHub Upload Guide
+
+## Recommended repository name
+
+`business-entity-resolution-ml`
+
+## Option A — GitHub website
+
+1. Create a new GitHub repository.
+2. Keep it public only if the competition rules allow public code.
+3. Extract this project ZIP.
+4. Upload the project folders/files.
+5. Commit with:
+   `Initial project: business entity resolution ML pipeline`
+
+## Option B — Git commands
+
+From the project folder:
+
+```bash
+git init
+git add .
+git commit -m ""Initial entity resolution ML pipeline""
+git branch -M main
+git remote add origin YOUR_GITHUB_REPOSITORY_URL
+git push -u origin main
+```
+
+Then future changes:
+
+```bash
+git add .
+git commit -m ""Improve candidate generation and validation""
+git push
+```
+
+## What should be public
+
+Good public files:
+
+- notebooks
+- source code
+- README
+- methodology
+- requirements
+- `.gitignore`
+
+Normally keep private:
+
+- challenge training/test TSVs
+- ground truth
+- large candidate-pair files
+- generated model binaries
+- final competition outputs, unless the competition permits publication
+
+## Suggested GitHub README sections
+
+1. Project overview
+2. Problem statement
+3. Dataset structure
+4. Approach
+5. Candidate generation
+6. Feature engineering
+7. Model
+8. Evaluation
+9. Submission format
+10. How to run
+11. Limitations / future improvements
+"
+entity_resolution_github_final/models/README.md	Markdown	79	"Generated trained model artifacts go here. They are ignored by Git by default.
+"
+entity_resolution_github_final/output/README.md	Markdown	118	"Generated submission files go here: matching_results.tsv and candidate_pairs.tsv. They are ignored by Git by default.
+"
+entity_resolution_github_final/notebooks/03_feature_engineering.ipynb	Jupyter Notebook	3584	"{
+ ""cells"": [
+  {
+   ""cell_type"": ""markdown"",
+   ""metadata"": {},
+   ""source"": [
+    ""# 03 \u2014 Feature Engineering\n"",
+    ""\n"",
+    ""Build the same pair features for training and test data.""
+   ]
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""from pathlib import Path\n"",
+    ""import pandas as pd\n"",
+    ""import numpy as np\n"",
+    ""import sys\n"",
+    ""from rapidfuzz import fuzz\n"",
+    ""ROOT=Path.cwd().resolve()\n"",
+    ""if not (ROOT/'data').exists() and (ROOT.parent/'data').exists(): ROOT=ROOT.parent\n"",
+    ""sys.path.insert(0,str(ROOT/'src'))\n"",
+    ""from preprocessing import prepare_source\n"",
+    ""TRAIN=ROOT/'data'/'train'\n"",
+    ""s1=prepare_source(pd.read_csv(TRAIN/'train_source1.tsv',sep='\\t'))\n"",
+    ""s2=prepare_source(pd.read_csv(TRAIN/'train_source2.tsv',sep='\\t'))\n"",
+    ""s3=prepare_source(pd.read_csv(TRAIN/'train_source3.tsv',sep='\\t'))\n"",
+    ""candidates=pd.read_pickle(ROOT/'output'/'candidate_pairs_internal.pkl')\n"",
+    ""gt=pd.read_csv(TRAIN/'train_ground_truth.tsv',sep='\\t')""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""s2_map=s2.set_index('entity_id').to_dict('index'); s3_map=s3.set_index('entity_id').to_dict('index'); s1_map=s1.set_index('entity_id').to_dict('index')\n"",
+    ""\n"",
+    ""def pair_features(row):\n"",
+    ""    a=s1_map[row.source1_entity_id]\n"",
+    ""    b=(s2_map|s3_map)[row.candidate_entity_id]\n"",
+    ""    n1,n2=a['name_norm'],b['name_norm']; ad1,ad2=a['address_norm'],b['address_norm']\n"",
+    ""    return {\n"",
+    ""      'name_similarity':fuzz.WRatio(n1,n2)/100,\n"",
+    ""      'name_token_similarity':fuzz.token_set_ratio(n1,n2)/100,\n"",
+    ""      'address_similarity':fuzz.WRatio(ad1,ad2)/100,\n"",
+    ""      'address_token_similarity':fuzz.token_set_ratio(ad1,ad2)/100,\n"",
+    ""      'name_exact':int(bool(n1) and n1==n2),\n"",
+    ""      'country_match':int(a['country_norm']==b['country_norm']),\n"",
+    ""      'name_missing':int(not n1 or not n2),\n"",
+    ""      'address_missing':int(not ad1 or not ad2),\n"",
+    ""      'name_length_diff':abs(len(n1)-len(n2)),\n"",
+    ""      'address_length_diff':abs(len(ad1)-len(ad2))\n"",
+    ""    }\n"",
+    ""features=candidates.copy()\n"",
+    ""extra=pd.DataFrame([pair_features(r) for r in candidates.itertuples(index=False)])\n"",
+    ""features=pd.concat([features.reset_index(drop=True),extra],axis=1)""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""truth={}\n"",
+    ""for r in gt.itertuples(index=False):\n"",
+    ""    mids=set(str(r.matched_entity_ids).split(',')) if pd.notna(r.matched_entity_ids) and str(r.matched_entity_ids).strip() else set()\n"",
+    ""    truth[r.source1_entity_id]=mids\n"",
+    ""features['label']=[int(r.candidate_entity_id in truth.get(r.source1_entity_id,set())) for r in features.itertuples(index=False)]\n"",
+    ""print(features['label'].value_counts())""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""features.to_pickle(ROOT/'output'/'training_features.pkl')\n"",
+    ""features.to_csv(ROOT/'output'/'entity_resolution_features_train.tsv',sep='\\t',index=False)\n"",
+    ""print('Saved training features.')""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  }
+ ],
+ ""metadata"": {
+  ""kernelspec"": {
+   ""display_name"": ""Python 3"",
+   ""language"": ""python"",
+   ""name"": ""python3""
+  },
+  ""language_info"": {
+   ""name"": ""python"",
+   ""version"": ""3.10""
+  }
+ },
+ ""nbformat"": 4,
+ ""nbformat_minor"": 5
+}"
+entity_resolution_github_final/notebooks/06_test_prediction.ipynb	Jupyter Notebook	5073	"{
+ ""cells"": [
+  {
+   ""cell_type"": ""markdown"",
+   ""metadata"": {},
+   ""source"": [
+    ""# 06 \u2014 Test Prediction\n"",
+    ""\n"",
+    ""Run this only after the complete test Source 1/2/3 files are placed in `data/test/`.""
+   ]
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""from pathlib import Path\n"",
+    ""import pandas as pd, numpy as np, joblib, sys\n"",
+    ""from rapidfuzz import fuzz\n"",
+    ""ROOT=Path.cwd().resolve()\n"",
+    ""if not (ROOT/'data').exists() and (ROOT.parent/'data').exists(): ROOT=ROOT.parent\n"",
+    ""sys.path.insert(0,str(ROOT/'src'))\n"",
+    ""from preprocessing import prepare_source\n"",
+    ""TEST=ROOT/'data'/'test'\n"",
+    ""s1=prepare_source(pd.read_csv(TEST/'test_source1.tsv',sep='\\t'))\n"",
+    ""s2=prepare_source(pd.read_csv(TEST/'test_source2.tsv',sep='\\t'))\n"",
+    ""s3=prepare_source(pd.read_csv(TEST/'test_source3.tsv',sep='\\t'))\n"",
+    ""model=joblib.load(ROOT/'models'/'entity_resolution_random_forest.joblib')\n"",
+    ""threshold=float((ROOT/'models'/'threshold.txt').read_text().strip())\n"",
+    ""print(s1.shape,s2.shape,s3.shape,'threshold=',threshold)""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""for df in (s1,s2,s3):\n"",
+    ""    df['name_country_key']=df['name_norm']+'||'+df['country_norm']\n"",
+    ""    df['address_block']=df['address_norm'].str.replace(' ','',regex=False).str[:8]\n"",
+    ""    df['address_country_key']=df['address_block']+'||'+df['country_norm']\n"",
+    ""\n"",
+    ""def block_pairs(a,b):\n"",
+    ""    left=a[['entity_id','name_country_key','address_country_key']].rename(columns={'entity_id':'source1_entity_id'})\n"",
+    ""    right=b[['entity_id','name_country_key','address_country_key']].rename(columns={'entity_id':'candidate_entity_id'})\n"",
+    ""    n=left.merge(right,on='name_country_key',how='inner')[['source1_entity_id','candidate_entity_id']]\n"",
+    ""    d=left.merge(right,on='address_country_key',how='inner')[['source1_entity_id','candidate_entity_id']]\n"",
+    ""    return pd.concat([n,d],ignore_index=True).drop_duplicates()\n"",
+    ""candidates=pd.concat([block_pairs(s1,s2),block_pairs(s1,s3)],ignore_index=True).drop_duplicates()\n"",
+    ""print('candidate pairs:',len(candidates))""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""smap=s1.set_index('entity_id').to_dict('index'); all_candidates=pd.concat([s2,s3],ignore_index=True).set_index('entity_id').to_dict('index')\n"",
+    ""def make_features(r):\n"",
+    ""    a=smap[r.source1_entity_id]; b=all_candidates[r.candidate_entity_id]\n"",
+    ""    n1,n2=a['name_norm'],b['name_norm']; ad1,ad2=a['address_norm'],b['address_norm']\n"",
+    ""    return [fuzz.WRatio(n1,n2)/100,fuzz.token_set_ratio(n1,n2)/100,fuzz.WRatio(ad1,ad2)/100,fuzz.token_set_ratio(ad1,ad2)/100,int(bool(n1) and n1==n2),int(a['country_norm']==b['country_norm']),int(not n1 or not n2),int(not ad1 or not ad2),abs(len(n1)-len(n2)),abs(len(ad1)-len(ad2))]\n"",
+    ""X=pd.DataFrame([make_features(r) for r in candidates.itertuples(index=False)],columns=['name_similarity','name_token_similarity','address_similarity','address_token_similarity','name_exact','country_match','name_missing','address_missing','name_length_diff','address_length_diff'])\n"",
+    ""candidates['prob']=model.predict_proba(X)[:,1]""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""# Final candidate file: every test S1 exactly once.\n"",
+    ""cand_out=(candidates.groupby('source1_entity_id')['candidate_entity_id'].apply(lambda x: ','.join(sorted(set(x)))).reindex(s1['entity_id'],fill_value='').rename('candidate_entity_ids').reset_index())\n"",
+    ""cand_out.to_csv(ROOT/'output'/'candidate_pairs.tsv',sep='\\t',index=False)\n"",
+    ""\n"",
+    ""# Final matching file: only candidates above the selected threshold.\n"",
+    ""pred=candidates[candidates['prob']>=threshold]\n"",
+    ""pred_map=pred.groupby('source1_entity_id')['candidate_entity_id'].apply(lambda x: ','.join(sorted(set(x)))).to_dict()\n"",
+    ""match_out=pd.DataFrame({'source1_entity_id':s1['entity_id'],'matched_entity_ids':[pred_map.get(x,'') for x in s1['entity_id']]})\n"",
+    ""match_out.to_csv(ROOT/'output'/'matching_results.tsv',sep='\\t',index=False)\n"",
+    ""print(match_out.head())\n"",
+    ""print('Rows:',len(match_out),'non-empty:',(match_out.matched_entity_ids!='').sum())""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""print('Final files:')\n"",
+    ""print(ROOT/'output'/'candidate_pairs.tsv')\n"",
+    ""print(ROOT/'output'/'matching_results.tsv')\n"",
+    ""print('Run src/submission_validator.py before submitting.')""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  }
+ ],
+ ""metadata"": {
+  ""kernelspec"": {
+   ""display_name"": ""Python 3"",
+   ""language"": ""python"",
+   ""name"": ""python3""
+  },
+  ""language_info"": {
+   ""name"": ""python"",
+   ""version"": ""3.10""
+  }
+ },
+ ""nbformat"": 4,
+ ""nbformat_minor"": 5
+}"
+entity_resolution_github_final/notebooks/04_model_training.ipynb	Jupyter Notebook	2528	"{
+ ""cells"": [
+  {
+   ""cell_type"": ""markdown"",
+   ""metadata"": {},
+   ""source"": [
+    ""# 04 \u2014 Model Training\n"",
+    ""\n"",
+    ""Train a pair classifier using a Source-1-level split to reduce leakage.""
+   ]
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""from pathlib import Path\n"",
+    ""import pandas as pd, numpy as np, joblib\n"",
+    ""from sklearn.ensemble import RandomForestClassifier\n"",
+    ""from sklearn.model_selection import GroupShuffleSplit\n"",
+    ""ROOT=Path.cwd().resolve()\n"",
+    ""if not (ROOT/'data').exists() and (ROOT.parent/'data').exists(): ROOT=ROOT.parent\n"",
+    ""features=pd.read_pickle(ROOT/'output'/'training_features.pkl')\n"",
+    ""feature_cols=['name_similarity','name_token_similarity','address_similarity','address_token_similarity','name_exact','country_match','name_missing','address_missing','name_length_diff','address_length_diff']\n"",
+    ""X=features[feature_cols]; y=features['label']; groups=features['source1_entity_id']\n"",
+    ""gss=GroupShuffleSplit(n_splits=1,test_size=0.2,random_state=42)\n"",
+    ""tr,va=next(gss.split(X,y,groups=groups))\n"",
+    ""model=RandomForestClassifier(n_estimators=250,random_state=42,n_jobs=-1,class_weight='balanced_subsample',min_samples_leaf=2,max_features='sqrt')\n"",
+    ""model.fit(X.iloc[tr],y.iloc[tr])\n"",
+    ""print('train pairs:',len(tr),'validation pairs:',len(va),'positive rate:',y.mean())""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""joblib.dump(model,ROOT/'models'/'entity_resolution_random_forest.joblib')\n"",
+    ""import json\n"",
+    ""(ROOT/'models'/'feature_columns.json').write_text(json.dumps(feature_cols,indent=2))\n"",
+    ""print('Model saved.')""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""from sklearn.metrics import precision_recall_fscore_support, roc_auc_score\n"",
+    ""p=model.predict_proba(X.iloc[va])[:,1]\n"",
+    ""for t in [0.30,0.40,0.50,0.60,0.70,0.80,0.90]:\n"",
+    ""    pred=(p>=t).astype(int)\n"",
+    ""    _,_,f,_=precision_recall_fscore_support(y.iloc[va],pred,beta=0.5,average='binary',zero_division=0)\n"",
+    ""    print(t, 'pair F0.5=',round(f,5))""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  }
+ ],
+ ""metadata"": {
+  ""kernelspec"": {
+   ""display_name"": ""Python 3"",
+   ""language"": ""python"",
+   ""name"": ""python3""
+  },
+  ""language_info"": {
+   ""name"": ""python"",
+   ""version"": ""3.10""
+  }
+ },
+ ""nbformat"": 4,
+ ""nbformat_minor"": 5
+}"
+entity_resolution_github_final/notebooks/05_validation.ipynb	Jupyter Notebook	2979	"{
+ ""cells"": [
+  {
+   ""cell_type"": ""markdown"",
+   ""metadata"": {},
+   ""source"": [
+    ""# 05 \u2014 Entity-Level Validation\n"",
+    ""\n"",
+    ""Select/inspect thresholds using the challenge-style macro F0.5 calculation.""
+   ]
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""from pathlib import Path\n"",
+    ""import pandas as pd, numpy as np, joblib\n"",
+    ""from sklearn.model_selection import GroupShuffleSplit\n"",
+    ""from sklearn.metrics import fbeta_score\n"",
+    ""ROOT=Path.cwd().resolve()\n"",
+    ""if not (ROOT/'data').exists() and (ROOT.parent/'data').exists(): ROOT=ROOT.parent\n"",
+    ""features=pd.read_pickle(ROOT/'output'/'training_features.pkl')\n"",
+    ""feature_cols=['name_similarity','name_token_similarity','address_similarity','address_token_similarity','name_exact','country_match','name_missing','address_missing','name_length_diff','address_length_diff']\n"",
+    ""model=joblib.load(ROOT/'models'/'entity_resolution_random_forest.joblib')\n"",
+    ""gss=GroupShuffleSplit(n_splits=1,test_size=0.2,random_state=42)\n"",
+    ""_,va=next(gss.split(features,features['label'],groups=features['source1_entity_id']))\n"",
+    ""val=features.iloc[va].copy(); val['prob']=model.predict_proba(val[feature_cols])[:,1]\n"",
+    ""TRAIN=ROOT/'data'/'train'; gt=pd.read_csv(TRAIN/'train_ground_truth.tsv',sep='\\t')\n"",
+    ""truth={r.source1_entity_id:(set(str(r.matched_entity_ids).split(',')) if pd.notna(r.matched_entity_ids) and str(r.matched_entity_ids).strip() else set()) for r in gt.itertuples(index=False)}""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""def macro_entity_f05(df,threshold):\n"",
+    ""    vals=[]\n"",
+    ""    for s1id, grp in df.groupby('source1_entity_id'):\n"",
+    ""        pred=set(grp.loc[grp.prob>=threshold,'candidate_entity_id'])\n"",
+    ""        true=truth.get(s1id,set())\n"",
+    ""        tp=len(pred&true); fp=len(pred-true); fn=len(true-pred)\n"",
+    ""        precision=tp/(tp+fp) if tp+fp else 1.0\n"",
+    ""        recall=tp/(tp+fn) if tp+fn else 1.0\n"",
+    ""        f=(1.25*precision*recall)/(0.25*precision+recall) if precision+recall else 0.0\n"",
+    ""        vals.append(f)\n"",
+    ""    return float(np.mean(vals))\n"",
+    ""\n"",
+    ""results=[]\n"",
+    ""for t in np.arange(0.30,0.951,0.05):\n"",
+    ""    results.append((round(float(t),2),macro_entity_f05(val,t)))\n"",
+    ""res=pd.DataFrame(results,columns=['threshold','macro_f0_5']).sort_values('macro_f0_5',ascending=False)\n"",
+    ""display(res)\n"",
+    ""best=float(res.iloc[0].threshold)\n"",
+    ""(ROOT/'models'/'threshold.txt').write_text(str(best))\n"",
+    ""print('Selected validation threshold:',best)""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  }
+ ],
+ ""metadata"": {
+  ""kernelspec"": {
+   ""display_name"": ""Python 3"",
+   ""language"": ""python"",
+   ""name"": ""python3""
+  },
+  ""language_info"": {
+   ""name"": ""python"",
+   ""version"": ""3.10""
+  }
+ },
+ ""nbformat"": 4,
+ ""nbformat_minor"": 5
+}"
+entity_resolution_github_final/notebooks/02_candidate_generation.ipynb	Jupyter Notebook	3561	"{
+ ""cells"": [
+  {
+   ""cell_type"": ""markdown"",
+   ""metadata"": {},
+   ""source"": [
+    ""# 02 \u2014 Candidate Generation\n"",
+    ""\n"",
+    ""Generate a high-recall candidate set without all-vs-all comparison.""
+   ]
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""from pathlib import Path\n"",
+    ""import pandas as pd\n"",
+    ""import sys\n"",
+    ""ROOT = Path.cwd().resolve()\n"",
+    ""if not (ROOT/'data').exists() and (ROOT.parent/'data').exists(): ROOT=ROOT.parent\n"",
+    ""sys.path.insert(0, str(ROOT/'src'))\n"",
+    ""from preprocessing import prepare_source\n"",
+    ""TRAIN=ROOT/'data'/'train'\n"",
+    ""s1=prepare_source(pd.read_csv(TRAIN/'train_source1.tsv', sep='\\t'))\n"",
+    ""s2=prepare_source(pd.read_csv(TRAIN/'train_source2.tsv', sep='\\t'))\n"",
+    ""s3=prepare_source(pd.read_csv(TRAIN/'train_source3.tsv', sep='\\t'))""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""for df in (s1,s2,s3):\n"",
+    ""    df['name_country_key'] = df['name_norm'] + '||' + df['country_norm']\n"",
+    ""    df['address_block'] = df['address_norm'].str.replace(' ','',regex=False).str[:8]\n"",
+    ""    df['address_country_key'] = df['address_block'] + '||' + df['country_norm']""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""def block_pairs(s1, other):\n"",
+    ""    left=s1[['entity_id','name_country_key','address_country_key']].rename(columns={'entity_id':'source1_entity_id'})\n"",
+    ""    right=other[['entity_id','name_country_key','address_country_key']].rename(columns={'entity_id':'candidate_entity_id'})\n"",
+    ""    by_name=left.merge(right,on='name_country_key',how='inner')[['source1_entity_id','candidate_entity_id']]\n"",
+    ""    by_addr=left.merge(right,on='address_country_key',how='inner')[['source1_entity_id','candidate_entity_id']]\n"",
+    ""    out=pd.concat([by_name,by_addr],ignore_index=True).drop_duplicates()\n"",
+    ""    return out\n"",
+    ""\n"",
+    ""c2=block_pairs(s1,s2); c3=block_pairs(s1,s3)\n"",
+    ""candidates=pd.concat([c2.assign(source='S2'),c3.assign(source='S3')],ignore_index=True).drop_duplicates(['source1_entity_id','candidate_entity_id'])\n"",
+    ""print('Candidate pairs:', candidates.shape)""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""# Required submission-format candidate file: one row per S1 entity.\n"",
+    ""candidate_output=(candidates.groupby('source1_entity_id')['candidate_entity_id']\n"",
+    ""                   .apply(lambda x: ','.join(sorted(set(x))))\n"",
+    ""                   .reindex(s1['entity_id'], fill_value='')\n"",
+    ""                   .rename('candidate_entity_ids').reset_index())\n"",
+    ""(candidate_output).to_csv(ROOT/'output'/'candidate_pairs.tsv',sep='\\t',index=False)\n"",
+    ""display(candidate_output.head())""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""# Keep the pair-level candidate table for the next notebook.\n"",
+    ""candidates.to_pickle(ROOT/'output'/'candidate_pairs_internal.pkl')\n"",
+    ""print('Saved output/candidate_pairs.tsv and output/candidate_pairs_internal.pkl')""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  }
+ ],
+ ""metadata"": {
+  ""kernelspec"": {
+   ""display_name"": ""Python 3"",
+   ""language"": ""python"",
+   ""name"": ""python3""
+  },
+  ""language_info"": {
+   ""name"": ""python"",
+   ""version"": ""3.10""
+  }
+ },
+ ""nbformat"": 4,
+ ""nbformat_minor"": 5
+}"
+entity_resolution_github_final/notebooks/01_entity_resolution_eda.ipynb	Jupyter Notebook	2501	"{
+ ""cells"": [
+  {
+   ""cell_type"": ""markdown"",
+   ""metadata"": {},
+   ""source"": [
+    ""# 01 \u2014 Entity Resolution EDA\n"",
+    ""\n"",
+    ""Inspect the challenge training data before modeling.""
+   ]
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""from pathlib import Path\n"",
+    ""import pandas as pd\n"",
+    ""import matplotlib.pyplot as plt\n"",
+    ""\n"",
+    ""ROOT = Path.cwd().resolve()\n"",
+    ""if not (ROOT / 'data').exists() and (ROOT.parent / 'data').exists(): ROOT = ROOT.parent\n"",
+    ""TRAIN = ROOT / 'data' / 'train'\n"",
+    ""\n"",
+    ""s1 = pd.read_csv(TRAIN/'train_source1.tsv', sep='\\t')\n"",
+    ""s2 = pd.read_csv(TRAIN/'train_source2.tsv', sep='\\t')\n"",
+    ""s3 = pd.read_csv(TRAIN/'train_source3.tsv', sep='\\t')\n"",
+    ""gt = pd.read_csv(TRAIN/'train_ground_truth.tsv', sep='\\t')\n"",
+    ""print('S1:', s1.shape, 'S2:', s2.shape, 'S3:', s3.shape, 'GT:', gt.shape)""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""for name, df in {'S1':s1,'S2':s2,'S3':s3,'ground_truth':gt}.items():\n"",
+    ""    print('\\n', name)\n"",
+    ""    display(df.head())\n"",
+    ""    display(df.isna().sum().to_frame('missing'))""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""print('Country distributions')\n"",
+    ""for name, df in {'S1':s1,'S2':s2,'S3':s3}.items():\n"",
+    ""    print(name)\n"",
+    ""    display(df['country'].value_counts(dropna=False))""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""print('Duplicate entity IDs')\n"",
+    ""for name, df in {'S1':s1,'S2':s2,'S3':s3}.items():\n"",
+    ""    print(name, df['entity_id'].duplicated().sum())\n"",
+    ""print('\\nDuplicate business names are not automatically duplicates of businesses; do not drop them.')""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  },
+  {
+   ""cell_type"": ""code"",
+   ""metadata"": {},
+   ""source"": [
+    ""gt['n_matches'] = gt['matched_entity_ids'].fillna('').apply(lambda x: 0 if not str(x).strip() else len(str(x).split(',')))\n"",
+    ""display(gt['n_matches'].value_counts().sort_index())""
+   ],
+   ""execution_count"": null,
+   ""outputs"": []
+  }
+ ],
+ ""metadata"": {
+  ""kernelspec"": {
+   ""display_name"": ""Python 3"",
+   ""language"": ""python"",
+   ""name"": ""python3""
+  },
+  ""language_info"": {
+   ""name"": ""python"",
+   ""version"": ""3.10""
+  }
+ },
+ ""nbformat"": 4,
+ ""nbformat_minor"": 5
+}"
+entity_resolution_github_final/data/test/README.md	Markdown	93	"Place the private test TSV files here: test_source1.tsv, test_source2.tsv, test_source3.tsv.
+"
+entity_resolution_github_final/data/train/README.md	Markdown	129	"Place the four private training TSV files here: train_source1.tsv, train_source2.tsv, train_source3.tsv, train_ground_truth.tsv.
+"
